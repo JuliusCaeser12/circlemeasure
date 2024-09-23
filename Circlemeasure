@@ -1,0 +1,100 @@
+import bpy
+import math
+import mathutils
+
+def get_total_distance_of_selected_vertices():
+    # Get the active object
+    obj = bpy.context.object
+   
+    # Ensure we're in edit mode
+    if obj and obj.mode == 'EDIT':
+        # Switch to object mode to access mesh data
+        bpy.ops.object.mode_set(mode='OBJECT')
+       
+        # Get the mesh data
+        mesh = obj.data
+       
+        # Find the selected vertices
+        selected_vertices = [v for v in mesh.vertices if v.select]
+       
+        if len(selected_vertices) < 2:
+            print("Please select at least two vertices.")
+            # Switch back to edit mode
+            bpy.ops.object.mode_set(mode='EDIT')
+            return None
+       
+        # Calculate the total distance between consecutive vertices
+        total_distance = 0.0
+        for i in range(len(selected_vertices) - 1):
+            v1 = selected_vertices[i].co
+            v2 = selected_vertices[i + 1].co
+            distance = (v1 - v2).length
+            total_distance += distance
+       
+        # Apply unit scale and display the total distance
+        total_distance = apply_unit_scale(total_distance)
+        add_total_distance(selected_vertices, total_distance)
+       
+        # Switch back to edit mode
+        bpy.ops.object.mode_set(mode='EDIT')
+       
+        print(f"Total distance between selected vertices: {total_distance:.5f} (with unit scale)")
+        return total_distance
+    else:
+        print("Please be in edit mode and select at least two vertices.")
+        return None
+
+def apply_unit_scale(distance):
+    # Get the scene unit settings
+    scene = bpy.context.scene
+    unit_settings = scene.unit_settings
+   
+    # Get the unit scale (default is 1.0 for meters)
+    scale = unit_settings.scale_length
+    distance *= scale
+   
+    # Check if the unit system is metric or imperial
+    if unit_settings.system == 'METRIC':
+        # Return distance in meters (adjusted for unit scale)
+        return distance
+    elif unit_settings.system == 'IMPERIAL':
+        # Convert meters to feet (1 meter = 3.28084 feet)
+        distance_in_feet = distance * 3.28084
+        return distance_in_feet
+
+def format_distance_for_display(distance):
+    # Get the scene unit settings
+    unit_settings = bpy.context.scene.unit_settings
+   
+    if unit_settings.system == 'METRIC':
+        # Format distance in meters with 5 decimal places
+        return f"{distance:.5f}m"
+    elif unit_settings.system == 'IMPERIAL':
+        # Display distance in decimal feet (with 5 decimal places)
+        return f"{distance:.5f}ft"
+
+def add_total_distance(vertices, total_distance):
+    # Get the average location of all selected vertices for the placement of the text
+    avg_location = sum([v.co for v in vertices], mathutils.Vector()) / len(vertices)
+   
+    # Create an Empty object at the average location to represent the measurement
+    bpy.ops.object.empty_add(type='PLAIN_AXES', location=avg_location)
+    empty = bpy.context.object
+    empty.name = f"Total Distance: {format_distance_for_display(total_distance)}"
+   
+    # Create a text object to display the total distance in the viewport
+    create_distance_text(avg_location, total_distance)
+
+def create_distance_text(location, total_distance):
+    # Add a text object at the average location
+    bpy.ops.object.text_add(location=location)
+    text_obj = bpy.context.object
+    text_obj.data.body = f"Total: {format_distance_for_display(total_distance)}"
+   
+    # Optionally adjust text size and alignment
+    text_obj.scale = (0.5, 0.5, 0.5)  # Adjust text size
+    text_obj.data.align_x = 'CENTER'
+    text_obj.data.align_y = 'CENTER'
+
+# Call the function
+get_total_distance_of_selected_vertices()
